@@ -2,6 +2,7 @@
 using System.Linq;
 
 using ManagedClient;
+using Npgsql;
 
 namespace TestApplication
 {
@@ -13,17 +14,53 @@ namespace TestApplication
             {
                 using (ManagedClient64 client = new ManagedClient64())
                 {
-                    // Подключаемся к серверу
-                    client.ParseConnectionString("host=127.0.0.1;port=6666;"
-                                                 + "user=1;password=1;");
+                    string postgresql_connect = "Server=192.168.1.2;User Id=postgres;Password=;Database=library;";
+                    string irbis_connect = "host=127.0.0.1;port=6666;user=1;password=1;";
+
+                    /*
+                     * Postgresql connect
+                     */
+                    Console.WriteLine("Postgresql connect");
+                    NpgsqlConnection connect = new NpgsqlConnection(postgresql_connect);
+                    Console.WriteLine("Postgresql connected");
+
+                    /*
+                     * Irbis connect
+                     */
+                    Console.WriteLine("Irbris connecting");
+                    client.ParseConnectionString(irbis_connect);
                     client.Connect();
+                    Console.WriteLine("Irbris connected");
 
+
+/*
+                    NpgsqlCommand command = new NpgsqlCommand("select * from books", connect);
+
+                    connect.Open();
+                 
+                    NpgsqlDataReader reader;
+                    reader = command.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            string result = reader.GetString(1);//Получаем значение из второго столбца! Первый это (0)!
+                            Console.WriteLine(result);
+                        }
+                        catch { }
+                    }
+                    connect.Close();
+*/
+
+
+
+
+                    
+/*
                     // Ищем все книги, у которых автор начинается на А (кириллица)
-                    int[] foundRecords = client.Search("\"A={0}$\"", "А");
+                    int[] foundRecords = client.Search("\"A={0}$\"", "В");
 
-                    // Чтобы не распечатывать все найденные записи,
-                    // ограничимся первыми 10
-                    int recordsToShow = Math.Min(foundRecords.Length, 10);
+                    int recordsToShow = foundRecords.Length;
 
                     for (int i = 0; i < recordsToShow; i++)
                     {
@@ -43,49 +80,23 @@ namespace TestApplication
                         // Можно было просто написать: 
                         // string mainTitle = record.FM("200", 'a');
 
-                        Console.WriteLine
-                            (
-                                "MFN={0}, Main title={1}",
-                                thisMfn,
-                                mainTitle
-                            );
+                        Console.WriteLine(
+                            "MFN={0}, Main title={1}",
+                            thisMfn,
+                            mainTitle
+                        );
 
                         // Расформатируем запись
-                        Console.WriteLine
-                            (
-                                "BRIEF: {0}",
-                                client.FormatRecord("@brief", record)
-                            );
-
-                        // Создаем запись
-                        IrbisRecord newRecord = new IrbisRecord();
-                        newRecord.AddField
-                            (
-                                "700",
-                                'a',
-                                "Управляемый клиент ИРБИС64"
-                            )
-                        .AddField
-                            (
-                                "200",
-                                'a', 
-                                string.Format ("Новая Запись от {0}", DateTime.Now),
-                                'f',
-                                "Управляемый клиент"
-                            );
-
-                        // Отсылаем вновь созданную запись на сервер
-                        client.WriteRecord
-                            (
-                                newRecord, 
-                                false, 
-                                true
-                            );
+                        Console.WriteLine(
+                            "BRIEF: {0}",
+                            client.FormatRecord("@brief", record)
+                        );
 
                         Console.WriteLine(new string('-', 60));
                     }
 
-                    // По выходу из using автоматически вызывается client.Disconnect ()
+                    Console.WriteLine(recordsToShow);
+*/
                 }
             }
             catch (Exception ex)
