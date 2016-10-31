@@ -3,6 +3,11 @@ using System.Linq;
 
 using ManagedClient;
 using Npgsql;
+using System.Collections.Generic;
+using System.Net;
+using System.IO;
+using System.Text;
+using System.Collections.Specialized;
 
 namespace TestApplication
 {
@@ -14,15 +19,30 @@ namespace TestApplication
             {
                 using (ManagedClient64 client = new ManagedClient64())
                 {
-                    string postgresql_connect = "Server=192.168.1.2;User Id=postgres;Password=;Database=library;";
-                    string irbis_connect = "host=127.0.0.1;port=6666;user=1;password=1;";
+                    string postgresql_connect = "Server=127.0.0.1;User Id=postgres;Password=;Database=cyberarmy;";
+                    string irbis_connect = "host=127.0.0.1;port=6452;user=СТА;password=СТА;";
 
                     /*
                      * Postgresql connect
                      */
-                    Console.WriteLine("Postgresql connect");
+                    /*Console.WriteLine("Postgresql connect");
                     NpgsqlConnection connect = new NpgsqlConnection(postgresql_connect);
+                    connect.Open();
                     Console.WriteLine("Postgresql connected");
+
+
+                    NpgsqlCommand command = new NpgsqlCommand("select * from php_monitoring_tab_server", connect);
+                    NpgsqlDataReader dr = command.ExecuteReader();
+
+                    while (dr.Read())
+                    {
+                        Console.Write("{0}\t{1}\t{2}\t{3}:{4}\t{5} \n", dr[0], dr[1], dr[2], dr[3], dr[4], dr[5]);
+                    }
+
+
+                    Console.WriteLine("Postgresql disconnect");
+                    connect.Close();
+                    Console.WriteLine("Postgresql disconnected");
 
                     /*
                      * Irbis connect
@@ -33,76 +53,84 @@ namespace TestApplication
                     Console.WriteLine("Irbris connected");
 
 
-/*
-                    NpgsqlCommand command = new NpgsqlCommand("select * from books", connect);
+                    // Делаем переключение на базу MV
+                    client.PushDatabase("MV");
 
-                    connect.Open();
-                 
-                    NpgsqlDataReader reader;
-                    reader = command.ExecuteReader();
-                    while (reader.Read())
+                    // Алфавит по которому будем производить циклический поиск
+                    string[] alphabet = new string[] {
+                        "А","Б","В","Г","Ґ","Д","Е","Є","Ё","Ж",
+                        "З","И","І","Ї","Й","К","Л","М","Н","О",
+                        "П","Р","С","Т","У","Ф","Х","Ц","Ч","Ш",
+                        "Щ","Ъ","Ы","Ь","Э","Ю","Я",
+                        "а","б","в","г","ґ","д","е","є","ё","ж",
+                        "з","и","і","ї","й","к","л","м","н","о",
+                        "п","р","с","т","у","ф","х","ц","ч","ш",
+                        "щ","ъ","ы","ь","э","ю","я",
+                    };
+
+                    // Осуществляем циклический поиск
+                    List<int> booksList = new List<int>();
+                    for (int i = 0; i < alphabet.Length; i++)
                     {
-                        try
+                        int[] found = client.Search("\"A={0}$\"", alphabet[i]);
+
+                        for (int j = 0; j < found.Length; j++)
                         {
-                            string result = reader.GetString(1);//Получаем значение из второго столбца! Первый это (0)!
-                            Console.WriteLine(result);
+                            booksList.Add(found[j]);
                         }
-                        catch { }
                     }
-                    connect.Close();
-*/
 
+                    // Преобразование списка в массив с удалением дубликатов
+                    int[] foundRecords = booksList.Distinct().ToArray();
 
-
-
-                    
-/*
-                    // Ищем все книги, у которых автор начинается на А (кириллица)
-                    int[] foundRecords = client.Search("\"A={0}$\"", "В");
+                    // Сортировка ID по возрастанию
+                    Array.Sort(foundRecords);
 
                     int recordsToShow = foundRecords.Length;
-
+                    
                     for (int i = 0; i < recordsToShow; i++)
                     {
                         int thisMfn = foundRecords[i];
-
-                        // Считываем запись
                         IrbisRecord record = client.ReadRecord(thisMfn);
 
-                        // Получаем основное заглавие
-                        string mainTitle = record
-                            .Fields
-                            .GetField("200")
-                            .GetSubField('a')
-                            .GetSubFieldText()
-                            .FirstOrDefault();
+                        string mainSubject = record.FM("200", 'a');
+                        string mainTitle = record.FM("200", 'e');
+                        string mainAuthors = record.FM("200", 'f');
 
-                        // Можно было просто написать: 
-                        // string mainTitle = record.FM("200", 'a');
+                        Console.WriteLine(mainAuthors + "\n" + mainTitle + "\n" + mainAuthors + "\n\n");
 
-                        Console.WriteLine(
-                            "MFN={0}, Main title={1}",
-                            thisMfn,
-                            mainTitle
-                        );
 
-                        // Расформатируем запись
-                        Console.WriteLine(
-                            "BRIEF: {0}",
-                            client.FormatRecord("@brief", record)
-                        );
+                        /*
+                         * API
+                         */
+                        //string url = "http://library.local/library/create";
 
-                        Console.WriteLine(new string('-', 60));
+                        //var pars = new NameValueCollection();
+                        //pars.Add("subject", mainSubject);
+                        //pars.Add("title", mainTitle);
+                        //pars.Add("authors", mainAuthors);
+                    
+
+                        //var webClient = new WebClient();
+                        //var response = webClient.UploadValues(url, pars);
+                        //string Answer = POST(url, "subject="+ mainSubject + "&title="+ mainTitle + "&authors"+ mainAuthors);
                     }
 
-                    Console.WriteLine(recordsToShow);
-*/
+
+                    Console.WriteLine("Irbris disconnect");
+                    client.Disconnect();
+                    Console.WriteLine("Irbris disconnected");
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
+        }
+
+        private static string POST(string url, string v)
+        {
+            throw new NotImplementedException();
         }
     }
 }
