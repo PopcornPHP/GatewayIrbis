@@ -2,12 +2,9 @@
 using System.Linq;
 
 using ManagedClient;
-using Npgsql;
 using System.Collections.Generic;
+using WpfTestApplication;
 using System.Net;
-using System.IO;
-using System.Text;
-using System.Collections.Specialized;
 
 namespace TestApplication
 {
@@ -19,36 +16,8 @@ namespace TestApplication
             {
                 using (ManagedClient64 client = new ManagedClient64())
                 {
-                    string postgresql_connect = "Server=127.0.0.1;User Id=postgres;Password=;Database=cyberarmy;";
-                    string irbis_connect = "host=127.0.0.1;port=6452;user=СТА;password=СТА;";
-
-                    /*
-                     * Postgresql connect
-                     */
-                    /*Console.WriteLine("Postgresql connect");
-                    NpgsqlConnection connect = new NpgsqlConnection(postgresql_connect);
-                    connect.Open();
-                    Console.WriteLine("Postgresql connected");
-
-
-                    NpgsqlCommand command = new NpgsqlCommand("select * from php_monitoring_tab_server", connect);
-                    NpgsqlDataReader dr = command.ExecuteReader();
-
-                    while (dr.Read())
-                    {
-                        Console.Write("{0}\t{1}\t{2}\t{3}:{4}\t{5} \n", dr[0], dr[1], dr[2], dr[3], dr[4], dr[5]);
-                    }
-
-
-                    Console.WriteLine("Postgresql disconnect");
-                    connect.Close();
-                    Console.WriteLine("Postgresql disconnected");
-
-                    /*
-                     * Irbis connect
-                     */
                     Console.WriteLine("Irbris connecting");
-                    client.ParseConnectionString(irbis_connect);
+                    client.ParseConnectionString("host=127.0.0.1;port=6452;user=СТА;password=СТА;");
                     client.Connect();
                     Console.WriteLine("Irbris connected");
 
@@ -58,14 +27,10 @@ namespace TestApplication
 
                     // Алфавит по которому будем производить циклический поиск
                     string[] alphabet = new string[] {
-                        "А","Б","В","Г","Ґ","Д","Е","Є","Ё","Ж",
-                        "З","И","І","Ї","Й","К","Л","М","Н","О",
-                        "П","Р","С","Т","У","Ф","Х","Ц","Ч","Ш",
-                        "Щ","Ъ","Ы","Ь","Э","Ю","Я",
-                        "а","б","в","г","ґ","д","е","є","ё","ж",
-                        "з","и","і","ї","й","к","л","м","н","о",
-                        "п","р","с","т","у","ф","х","ц","ч","ш",
-                        "щ","ъ","ы","ь","э","ю","я",
+                        "А","Б","В","Г","Ґ","Д","Е","Є","Ё","Ж","З","И","І","Ї","Й","К","Л","М","Н",
+                        "О","П","Р","С","Т","У","Ф","Х","Ц","Ч","Ш","Щ","Ъ","Ы","Ь","Э","Ю","Я",
+                        "а","б","в","г","ґ","д","е","є","ё","ж","з","и","і","ї","й","к","л","м","н",
+                        "о","п","р","с","т","у","ф","х","ц","ч","ш","щ","ъ","ы","ь","э","ю","я",
                     };
 
                     // Осуществляем циклический поиск
@@ -83,37 +48,45 @@ namespace TestApplication
                     // Преобразование списка в массив с удалением дубликатов
                     int[] foundRecords = booksList.Distinct().ToArray();
 
-                    // Сортировка ID по возрастанию
+                    // Сортировка списка ID по возрастанию
                     Array.Sort(foundRecords);
 
-                    int recordsToShow = foundRecords.Length;
+                    int recordsCount = foundRecords.Length;
                     
-                    for (int i = 0; i < recordsToShow; i++)
+                    /*
+                     * Запись данных в БД
+                     */
+                    /*for (int i = 0; i < recordsCount - 1; i++)
                     {
-                        int thisMfn = foundRecords[i];
-                        IrbisRecord record = client.ReadRecord(thisMfn);
+                        IrbisRecord record = client.ReadRecord(foundRecords[i]);
 
-                        string mainSubject = record.FM("200", 'a');
-                        string mainTitle = record.FM("200", 'e');
-                        string mainAuthors = record.FM("200", 'f');
+                        MyWebRequest myRequest = new MyWebRequest("http://library.local/api/library/create", "POST",
+                            "title="        + record.FM("200", 'e') +
+                            "&method_id="   + record.FM("906") +
+                            "&subject="     + record.FM("200", 'a') +
+                            "&authors="     + record.FM("200", 'f') +
+                            "&lib_id="      + foundRecords[i]
+                        );
+                    }*/
 
-                        Console.WriteLine(mainAuthors + "\n" + mainTitle + "\n" + mainAuthors + "\n\n");
 
+                    for (int i = 0; i < recordsCount - 1; i++)
+                    {
 
-                        /*
-                         * API
-                         */
-                        //string url = "http://library.local/library/create";
+                        IrbisRecord record = client.ReadRecord(foundRecords[i]);
 
-                        //var pars = new NameValueCollection();
-                        //pars.Add("subject", mainSubject);
-                        //pars.Add("title", mainTitle);
-                        //pars.Add("authors", mainAuthors);
-                    
+                        string uriString = "D:/IRBIS64/Datai/MV" + record.FM("951", 'a');
+                        string fileName = "http://library.local/api/library/attach";
 
-                        //var webClient = new WebClient();
-                        //var response = webClient.UploadValues(url, pars);
-                        //string Answer = POST(url, "subject="+ mainSubject + "&title="+ mainTitle + "&authors"+ mainAuthors);
+                        // Create a new WebClient instance.
+                        WebClient myWebClient = new WebClient();
+
+                        // Upload the file to the URL using the HTTP 1.0 POST.
+                        byte[] responseArray = myWebClient.UploadFile(uriString, "POST", fileName);
+
+                        // Decode and display the response.
+                        Console.WriteLine("\nResponse Received.The contents of the file uploaded are:\n{0}",
+                            System.Text.Encoding.ASCII.GetString(responseArray));
                     }
 
 
@@ -126,11 +99,6 @@ namespace TestApplication
             {
                 Console.WriteLine(ex);
             }
-        }
-
-        private static string POST(string url, string v)
-        {
-            throw new NotImplementedException();
         }
     }
 }
