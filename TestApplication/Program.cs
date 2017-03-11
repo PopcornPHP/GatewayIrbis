@@ -2,9 +2,8 @@
 using System.Linq;
 
 using ManagedClient;
-using System.Collections.Generic;
 using WpfTestApplication;
-using System.Net;
+using System.Collections.Generic;
 
 namespace TestApplication
 {
@@ -16,11 +15,14 @@ namespace TestApplication
             {
                 using (ManagedClient64 client = new ManagedClient64())
                 {
-                    Console.WriteLine("Irbris connecting");
-                    client.ParseConnectionString("host=127.0.0.1;port=6452;user=СТА;password=СТА;");
+                    Console.WriteLine("Database connecting");
+                    client.ParseConnectionString("host=127.0.0.1;port=6452;user=USER;password=PASS;");
                     client.Connect();
-                    Console.WriteLine("Irbris connected");
+                    Console.WriteLine("Database connected");
 
+                    Console.WriteLine(new string('-', 60));
+
+                    Console.WriteLine("Start of search");
 
                     // Делаем переключение на базу MV
                     client.PushDatabase("MV");
@@ -43,7 +45,11 @@ namespace TestApplication
                         {
                             booksList.Add(found[j]);
                         }
+
                     }
+                    Console.WriteLine("End of search");
+
+                    Console.WriteLine(new string('-', 60));
 
                     // Преобразование списка в массив с удалением дубликатов
                     int[] foundRecords = booksList.Distinct().ToArray();
@@ -52,47 +58,74 @@ namespace TestApplication
                     Array.Sort(foundRecords);
 
                     int recordsCount = foundRecords.Length;
-                    
+                    Console.WriteLine("Total records: " + recordsCount);
+
+
                     /*
-                     * Запись данных в БД
+                     * Разбитие массива данных на чанки, и отправка в БД
                      */
-                    /*for (int i = 0; i < recordsCount - 1; i++)
+                    string domain = "http://localhost/";
+
+                    int offset = 0;
+                    int chunk = 100;
+                    while (offset < recordsCount)
                     {
-                        IrbisRecord record = client.ReadRecord(foundRecords[i]);
+                        int chunkLength = (offset + chunk > recordsCount ? (recordsCount - offset) % chunk : chunk);
+                        int[] chunkRecords = new int[chunkLength];
 
-                        MyWebRequest myRequest = new MyWebRequest("http://library.local/api/library/create", "POST",
-                            "title="        + record.FM("200", 'e') +
-                            "&method_id="   + record.FM("906") +
-                            "&subject="     + record.FM("200", 'a') +
-                            "&authors="     + record.FM("200", 'f') +
-                            "&lib_id="      + foundRecords[i]
-                        );
-                    }*/
+                        Array.Copy(foundRecords, offset, chunkRecords, 0, chunkLength);
+                        offset += chunk;
 
+                        /*
+                         * Подготовка данных перед записью
+                         */
+                        string books = "";
+                        string authors = "";
+                        string bookAuthor = "";
+                        for (int i = 0; i < chunkLength - 1; i++)
+                        {
+                            // Формируем чанк данных для переноса
+                            IrbisRecord record = client.ReadRecord(chunkRecords[i]);
 
-                    for (int i = 0; i < recordsCount - 1; i++)
-                    {
+                            books +=
+                                "book[" + i + "][category_id]=" + "1" + "&" +
+                                "book[" + i + "][mfn]=" + record.FM("906") + "&" +
+                                "book[" + i + "][name]=" + record.FM("200", 'e') + "&" +
+                                "book[" + i + "][year]=" + record.FM("210", 'd') + "&" +
+                                "book[" + i + "][udk]=" + record.FM("200", 'a') + "&";
 
-                        IrbisRecord record = client.ReadRecord(foundRecords[i]);
+                            authors +=
+                                "author[" + i + "][sign]=" + record.FM("908") + "&" +
+                                "author[" + i + "][surname]=" + record.FM("700", 'a') + "&" +
+                                "author[" + i + "][initials]=" + record.FM("700", 'b') + "&";
 
-                        string uriString = "D:/IRBIS64/Datai/MV" + record.FM("951", 'a');
-                        string fileName = "http://library.local/api/library/attach";
+                            // TODO Как получить список всех авторов для данной книги?
+                            bookAuthor +=
+                                "attach[mfn]=" + record.FM("906") + "&" +
+                                "attach[sign]=" + record.FM("908") + "&";
+                        }
 
-                        // Create a new WebClient instance.
-                        WebClient myWebClient = new WebClient();
+                        /*
+                         * Методы отправки данных в БД
+                         */
+                        MyWebRequest createBook = new MyWebRequest(domain + "createBook", "POST", books);
+                        Console.WriteLine("createBook: " + createBook.GetResponse());
+                        Console.WriteLine(new string('-', 60));
 
-                        // Upload the file to the URL using the HTTP 1.0 POST.
-                        byte[] responseArray = myWebClient.UploadFile(uriString, "POST", fileName);
+                        MyWebRequest createAuthor = new MyWebRequest(domain + "createAuthor", "POST", authors);
+                        Console.WriteLine("createAuthor: " + createAuthor.GetResponse());
+                        Console.WriteLine(new string('-', 60));
 
-                        // Decode and display the response.
-                        Console.WriteLine("\nResponse Received.The contents of the file uploaded are:\n{0}",
-                            System.Text.Encoding.ASCII.GetString(responseArray));
+                        MyWebRequest attachBookAuthor = new MyWebRequest(domain + "attachBookAuthor", "POST", bookAuthor);
+                        Console.WriteLine("attachBookAuthor: " + attachBookAuthor.GetResponse());
+                        Console.WriteLine(new string('-', 60));
+                        Console.WriteLine(new string('-', 60));
                     }
-
 
                     Console.WriteLine("Irbris disconnect");
                     client.Disconnect();
                     Console.WriteLine("Irbris disconnected");
+                    Console.WriteLine(new string('-', 60));
                 }
             }
             catch (Exception ex)
